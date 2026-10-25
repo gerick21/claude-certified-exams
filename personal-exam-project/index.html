@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Certified Developer (Foundations) - Multi-Exam Portal (CCDV-F)</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Top Navigation & Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="nav-home-btn" id="btn-nav-home" title="Return to Home Dashboard">
+        <span class="brand-dot"></span>
+        <span class="brand-text" id="brand-text">CCDV-F Prep</span>
+      </button>
+
+      <!-- Track Switcher Pills -->
+      <div class="track-switcher" id="track-switcher">
+        <button class="track-pill active" id="pill-track-developer" data-track="developer" title="Claude Certified Developer (Foundations)">Developer</button>
+        <button class="track-pill" id="pill-track-architect" data-track="architect" title="Claude Certified Solutions Architect (Foundations)">Solutions Architect</button>
+      </div>
+
+      <!-- Exam Switcher Dropdown (active when in exam view) -->
+      <div class="exam-switcher-container" id="exam-switcher-container">
+        <select class="exam-select" id="exam-select" aria-label="Select Exam">
+          <option value="1">Exam 1: Foundations & Core Integration</option>
+          <option value="2">Exam 2: Advanced Agents & Tool-Use</option>
+          <option value="3">Exam 3: Evals & Enterprise Security</option>
+          <option value="4">Exam 4: Claude Code & MCP Systems</option>
+          <option value="5">Exam 5: Comprehensive Mock Exam</option>
+        </select>
+      </div>
+
+      <span class="exam-code-tag" id="header-exam-tag">5 Exams • 265 Items</span>
+    </div>
+
+    <!-- Center stats (switches between Home View summary and Exam View stats) -->
+    <div class="header-center">
+      <!-- Exam View Stats -->
+      <div class="exam-stats-group" id="header-exam-stats">
+        <div class="stat-card" id="stat-score-card">
+          <span class="stat-label">Exam Score</span>
+          <div class="stat-value">
+            <span id="score-correct">0</span> / <span id="score-attempted">0</span>
+            <span class="stat-pct" id="score-pct">(0%)</span>
+          </div>
+        </div>
+
+        <div class="stat-card" id="stat-scaled-card">
+          <span class="stat-label">Scaled Score</span>
+          <div class="stat-value">
+            <span id="scaled-score">100</span> <span class="stat-total">/ 1000</span>
+            <span class="status-pill status-fail" id="status-pill">Needs 720</span>
+          </div>
+        </div>
+
+        <div class="stat-card" id="stat-timer-card">
+          <span class="stat-label">Time Remaining</span>
+          <div class="stat-value timer-value" id="timer-display">120:00</div>
+        </div>
+      </div>
+
+      <!-- Home View Stats Header summary -->
+      <div class="home-stats-group" id="header-home-stats">
+        <div class="stat-card">
+          <span class="stat-label">Total Progress</span>
+          <div class="stat-value">
+            <span id="home-head-answered">0</span> <span class="stat-total">/ 265 answered</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Overall Accuracy</span>
+          <div class="stat-value">
+            <span id="home-head-accuracy">0%</span>
+            <span class="status-pill status-neutral" id="home-head-status">Not Started</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- In Exam View: Mode Toggle -->
+      <div class="mode-toggle-group" id="exam-mode-toggle">
+        <button class="mode-btn active" id="btn-mode-practice" title="Instant right/wrong feedback and thorough explanations">
+          Study Mode
+        </button>
+        <button class="mode-btn" id="btn-mode-exam" title="120-minute timed simulation with final review">
+          Timed Exam
+        </button>
+      </div>
+
+      <!-- In Exam View: Utilities -->
+      <button class="icon-btn" id="btn-open-palette" title="Open Question Grid [G]">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>Grid (53)</span>
+      </button>
+
+      <button class="icon-btn" id="btn-open-breakdown" title="View Domain Performance Breakdown [D]">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span>Domains</span>
+      </button>
+
+      <!-- View Switcher Button -->
+      <button class="btn-header-action" id="btn-toggle-view">
+        <span id="btn-toggle-view-text">Dashboard</span>
+      </button>
+
+      <button class="icon-btn danger-hover" id="btn-reset-current-exam" title="Reset current exam answers">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+          <path d="M3 3v5h5"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Progress Bar Strip (Current Exam) -->
+  <div class="progress-bar-container" id="exam-progress-bar-container">
+    <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
+  </div>
+
+  <!-- =========================================================================
+       VIEW 1: HOME PAGE / DASHBOARD
+       ========================================================================= -->
+  <div class="portal-view" id="home-view">
+    <main class="dashboard-content">
+      <!-- Hero Banner -->
+      <section class="dashboard-hero">
+        <!-- Interactive Track Selection Cards -->
+        <div class="track-selector-cards" id="track-selector-cards">
+          <div class="track-card active" id="card-track-developer" data-track="developer" role="button" tabindex="0">
+            <span class="track-card-badge">CCDV-F</span>
+            <h3>Claude Certified Developer</h3>
+            <p>8 Blueprint Domains • 5 Full Exams • 265 Items</p>
+          </div>
+          <div class="track-card" id="card-track-architect" data-track="architect" role="button" tabindex="0">
+            <span class="track-card-badge">CCSA-F</span>
+            <h3>Solutions Architect</h3>
+            <p>5 Blueprint Domains • 5 Full Exams • 265 Items</p>
+          </div>
+        </div>
+
+        <div class="hero-badge" id="hero-badge">
+          <span class="pulse-dot"></span>
+          <span id="hero-badge-text">CCDV-F Certification Prep Suite</span>
+        </div>
+        <h1 class="hero-title" id="hero-title">Claude Certified Developer Practice Portal</h1>
+        <p class="hero-description" id="hero-description">
+          Master all 8 official blueprint domains with <strong>5 full-length, scenario-based practice exams</strong> (265 unique questions total).
+          All questions feature balanced option lengths, realistic distractors, and rigorous rationales based strictly on the Anthropic Developer Course.
+        </p>
+
+        <div class="storage-status-banner">
+          <div class="storage-indicator">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>Progress automatically saved to <strong>LocalStorage</strong> (persists across port closures and reloads).</span>
+          </div>
+          <div class="storage-actions">
+            <button class="btn-ghost-sm" id="btn-export-progress" title="Export study progress to JSON file">Export Backup</button>
+            <button class="btn-ghost-sm" id="btn-import-progress" title="Import study progress from JSON file">Import Backup</button>
+            <input type="file" id="import-file-input" accept=".json" style="display: none;">
+            <button class="btn-ghost-sm text-danger" id="btn-reset-all" title="Clear all exam data">Reset All</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Overall Readiness Stats Grid -->
+      <section class="overall-stats-section">
+        <div class="stat-box-large">
+          <div class="stat-box-header">
+            <span class="stat-box-title">Total Questions Answered</span>
+            <span class="stat-box-badge" id="stat-overall-pct">0%</span>
+          </div>
+          <div class="stat-box-main">
+            <span class="stat-big-num" id="stat-overall-answered">0</span>
+            <span class="stat-big-sub">/ 265 questions</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="stat-overall-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="stat-box-large">
+          <div class="stat-box-header">
+            <span class="stat-box-title">Cumulative Accuracy</span>
+            <span class="stat-box-badge" id="stat-accuracy-badge">0%</span>
+          </div>
+          <div class="stat-box-main">
+            <span class="stat-big-num" id="stat-overall-correct">0</span>
+            <span class="stat-big-sub">correct answers</span>
+          </div>
+          <div class="stat-box-subtext" id="stat-accuracy-subtext">0 attempted across all exams</div>
+        </div>
+
+        <div class="stat-box-large">
+          <div class="stat-box-header">
+            <span class="stat-box-title">Predicted Scaled Score</span>
+            <span class="status-pill status-fail" id="stat-overall-pill">Needs 720</span>
+          </div>
+          <div class="stat-box-main">
+            <span class="stat-big-num" id="stat-overall-scaled">100</span>
+            <span class="stat-big-sub">/ 1000 scale</span>
+          </div>
+          <div class="stat-box-subtext">Passing standard: 720 / 1000 (Pearson VUE)</div>
+        </div>
+
+        <div class="stat-box-large">
+          <div class="stat-box-header">
+            <span class="stat-box-title">Exams Completed</span>
+            <span class="stat-box-badge" id="stat-completed-badge">0 / 5</span>
+          </div>
+          <div class="stat-box-main">
+            <span class="stat-big-num" id="stat-exams-passed">0</span>
+            <span class="stat-big-sub">exams passed (≥72%)</span>
+          </div>
+          <div class="stat-box-subtext" id="stat-last-active-text">No active exam session yet</div>
+        </div>
+      </section>
+
+      <!-- Exam Selection Cards -->
+      <section class="exam-cards-section">
+        <div class="section-header">
+          <h2 class="section-title">Practice Exams</h2>
+          <span class="section-subtitle">5 distinct exam banks • 53 questions each • Realistic Pearson VUE blueprint</span>
+        </div>
+
+        <div class="exam-cards-grid" id="exam-cards-grid">
+          <!-- Exam cards 1-5 injected dynamically by JS -->
+        </div>
+      </section>
+
+      <!-- Aggregate Domain Proficiency Section -->
+      <section class="aggregate-domains-section">
+        <div class="section-header">
+          <h2 class="section-title">Blueprint Domain Coverage</h2>
+          <span class="section-subtitle">Aggregated performance across all 265 questions by syllabus weight</span>
+        </div>
+
+        <div class="domain-aggregate-grid" id="domain-aggregate-grid">
+          <!-- 8 Domain cards injected dynamically by JS -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- =========================================================================
+       VIEW 2: ACTIVE EXAM WORKSPACE
+       ========================================================================= -->
+  <div class="portal-view hidden" id="exam-view">
+    <main class="exam-workspace">
+      <!-- Question Container -->
+      <div class="question-wrapper">
+        <div class="question-card" id="question-card">
+          <!-- Question Meta Header -->
+          <div class="question-header">
+            <div class="question-breadcrumbs">
+              <span class="q-number-badge" id="q-number-badge">Question 1 of 53</span>
+              <span class="q-domain-pill" id="q-domain-pill">Domain 1: Agents and Workflows</span>
+              <span class="q-subskill-pill" id="q-subskill-pill">Agent Architecture</span>
+              <span class="q-module-tag" id="q-module-tag">Module 2</span>
+            </div>
+
+            <div class="question-actions-top">
+              <button class="btn-flag" id="btn-flag" title="Flag this question for review [F]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                  <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+                <span id="flag-text">Flag for Review</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Question Scenario / Stem -->
+          <div class="scenario-section">
+            <div class="scenario-text" id="scenario-text">
+              Loading question scenario...
+            </div>
+            <div class="multi-select-hint hidden" id="multi-select-hint">
+              <span class="hint-icon">ℹ</span>
+              <span><strong>Multiple Response:</strong> Select exactly TWO options, then click <strong>Submit Answer</strong>.</span>
+            </div>
+          </div>
+
+          <!-- Options Container -->
+          <div class="options-container" id="options-container">
+            <!-- Dynamically populated via JS -->
+          </div>
+
+          <!-- Multi-select Submit Button -->
+          <div class="multi-submit-wrapper hidden" id="multi-submit-wrapper">
+            <button class="btn-primary" id="btn-submit-multi" disabled>
+              Submit Answer
+            </button>
+          </div>
+
+          <!-- Instant Feedback Section (Revealed on answer in Study Mode) -->
+          <div class="feedback-panel hidden" id="feedback-panel">
+            <div class="feedback-banner" id="feedback-banner">
+              <div class="feedback-icon" id="feedback-icon">✓</div>
+              <div class="feedback-title" id="feedback-title">Correct!</div>
+            </div>
+
+            <div class="feedback-body">
+              <div class="feedback-explanation" id="feedback-explanation">
+                <!-- Explanation text -->
+              </div>
+
+              <div class="feedback-mindset" id="feedback-mindset">
+                <div class="mindset-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                  </svg>
+                  <span>Key Exam Mindset</span>
+                </div>
+                <div class="mindset-text" id="mindset-text">
+                  Proportionate fix first.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Question Navigation Bar -->
+          <div class="question-nav-footer">
+            <div class="nav-left">
+              <button class="nav-btn" id="btn-prev" disabled title="Previous question [P or ←]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>Previous</span>
+              </button>
+            </div>
+
+            <div class="nav-center">
+              <span class="nav-hint">Use keys <kbd>1</kbd>-<kbd>4</kbd> to select, <kbd>N</kbd> next, <kbd>P</kbd> previous, <kbd>F</kbd> flag</span>
+            </div>
+
+            <div class="nav-right">
+              <button class="nav-btn btn-secondary" id="btn-clear-selection" title="Clear your answer for this question">
+                Clear
+              </button>
+              <button class="nav-btn btn-primary" id="btn-next" title="Next question [N or →]">
+                <span>Next</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+              <button class="nav-btn btn-finish hidden" id="btn-finish-exam" title="Finish exam and view final score report">
+                Finish Exam
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Question Palette Modal / Drawer -->
+  <div class="modal-overlay hidden" id="palette-modal">
+    <div class="palette-drawer">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2>Question Navigator</h2>
+          <span class="modal-subtitle" id="palette-subtitle">Jump directly to any question</span>
+        </div>
+        <button class="close-modal-btn" id="btn-close-palette" aria-label="Close">✕</button>
+      </div>
+
+      <div class="palette-filters">
+        <button class="filter-chip active" data-filter="all">All (53)</button>
+        <button class="filter-chip" data-filter="answered">Answered (<span id="count-answered">0</span>)</button>
+        <button class="filter-chip" data-filter="unanswered">Unanswered (<span id="count-unanswered">53</span>)</button>
+        <button class="filter-chip" data-filter="flagged">Flagged (<span id="count-flagged">0</span>)</button>
+        <button class="filter-chip" data-filter="incorrect">Incorrect (<span id="count-incorrect">0</span>)</button>
+      </div>
+
+      <div class="palette-legend">
+        <span class="legend-item"><span class="legend-dot status-current"></span> Current</span>
+        <span class="legend-item"><span class="legend-dot status-correct"></span> Correct</span>
+        <span class="legend-item"><span class="legend-dot status-incorrect"></span> Incorrect</span>
+        <span class="legend-item"><span class="legend-dot status-answered"></span> Answered</span>
+        <span class="legend-item"><span class="legend-dot status-flagged"></span> Flagged</span>
+      </div>
+
+      <div class="palette-grid" id="palette-grid">
+        <!-- 53 question cells injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Domain Breakdown Modal -->
+  <div class="modal-overlay hidden" id="breakdown-modal">
+    <div class="breakdown-modal-content">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 id="breakdown-title">Domain Proficiency Breakdown</h2>
+          <span class="modal-subtitle">Official CCDV-F Blueprint Weighting & Performance</span>
+        </div>
+        <button class="close-modal-btn" id="btn-close-breakdown" aria-label="Close">✕</button>
+      </div>
+
+      <div class="domains-table-container">
+        <table class="domains-table">
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Weight</th>
+              <th>Items</th>
+              <th>Correct</th>
+              <th>Score %</th>
+              <th>Readiness Status</th>
+            </tr>
+          </thead>
+          <tbody id="domains-table-body">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="breakdown-summary-banner" id="breakdown-summary-banner">
+        <!-- Summary insight -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Final Exam Score Report Modal -->
+  <div class="modal-overlay hidden" id="results-modal">
+    <div class="results-modal-content">
+      <div class="results-header">
+        <div class="result-badge-container" id="result-badge-container">
+          <div class="result-icon-large" id="result-icon-large">🏆</div>
+          <div class="result-verdict" id="result-verdict">PASS</div>
+        </div>
+        <h2 id="results-title">Exam Completed</h2>
+        <p class="results-subtitle" id="results-subtitle">Here is your official scaled score report breakdown.</p>
+      </div>
+
+      <div class="score-summary-grid">
+        <div class="score-metric-box">
+          <span class="metric-label">Scaled Score</span>
+          <span class="metric-value highlight" id="report-scaled-score">845</span>
+          <span class="metric-sub">Passing Score: 720 / 1000</span>
+        </div>
+        <div class="score-metric-box">
+          <span class="metric-label">Items Correct</span>
+          <span class="metric-value" id="report-raw-score">44 / 53</span>
+          <span class="metric-sub" id="report-raw-pct">83.0% Accuracy</span>
+        </div>
+        <div class="score-metric-box">
+          <span class="metric-label">Time Taken</span>
+          <span class="metric-value" id="report-time-taken">42m 15s</span>
+          <span class="metric-sub">Allocated: 120m 00s</span>
+        </div>
+      </div>
+
+      <div class="results-domains-section">
+        <h3>Performance by Blueprint Domain</h3>
+        <div class="results-domains-list" id="results-domains-list">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <div class="results-actions">
+        <button class="btn-primary" id="btn-review-missed">Review Missed Questions</button>
+        <button class="btn-secondary" id="btn-review-all">Review All 53 Questions</button>
+        <button class="btn-secondary danger-hover" id="btn-retake-exam">Retake Exam</button>
+        <button class="btn-secondary" id="btn-results-home">Return to Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts: Registry metadata, bundled track data, legacy data, then app logic -->
+  <script src="data/registry.js"></script>
+  <script src="data/developer_data.js"></script>
+  <script src="data/architect_data.js"></script>
+  <script src="exams_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

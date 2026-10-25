@@ -1,0 +1,1455 @@
+#!/usr/bin/env python3
+"""
+Authoring Script for Architect Practice Exam 1:
+'Practice Exam 1: Agentic Loops & Orchestration Patterns'
+Domain 1: 14 Qs | Domain 2: 10 Qs | Domain 3: 11 Qs | Domain 4: 10 Qs | Domain 5: 8 Qs = 53 Questions
+"""
+
+import json
+import os
+
+def create_question(qid, domain_id, domain_name, sub_skill, module, scenario, options, correct_idx, rationales, key_insight, is_multi=False):
+    letters = ['A', 'B', 'C', 'D']
+    structured = []
+    d_idx = 0
+    corr_list = [correct_idx] if not is_multi else correct_idx
+    for i, opt in enumerate(options):
+        is_corr = i in corr_list
+        if is_corr:
+            fb = f"Correct. {rationales['correct']}"
+        else:
+            dist_text = rationales['distractors'][d_idx % len(rationales['distractors'])]
+            fb = f"Incorrect. {dist_text}"
+            d_idx += 1
+        structured.append({
+            "letter": letters[i],
+            "text": opt,
+            "isCorrect": is_corr,
+            "feedback": fb
+        })
+    
+    # Calculate length ratio
+    lens = [len(o) for o in options]
+    ratio = max(lens) / min(lens)
+    if ratio > 1.25:
+        print(f"Warning: Q{qid} ratio {ratio:.2f} exceeds 1.25. Lengths: {lens}")
+        
+    return {
+        "id": qid,
+        "domainId": domain_id,
+        "domainName": domain_name,
+        "subSkill": sub_skill,
+        "module": module,
+        "scenario": scenario,
+        "isMultiSelect": is_multi,
+        "options": options,
+        "correctIndices": [correct_idx] if not is_multi else correct_idx,
+        "rationales": rationales,
+        "keyInsight": key_insight,
+        "structuredOptions": structured,
+        "overallExplanation": f"**Correct Solution:** {rationales['correct']}\n\n**Key Exam Mindset:** {key_insight}"
+    }
+
+questions = []
+
+# ─── DOMAIN 1: Agentic Architecture & Orchestration (Q1 - Q14) ───────────────
+
+# Q1 (Target: A = 0)
+questions.append(create_question(
+    qid=1,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Agentic Loops",
+    module="Domain 1 (Agentic Loops)",
+    scenario="A software engineer builds an autonomous customer support agent with the Claude Messages API. During integration testing, the agent terminates prematurely after its first tool invocation, returning raw JSON instead of completing the user request. Inspection reveals the application loop terminates as soon as `response.content[0].type == 'text'`. What is the correct loop termination condition?",
+    options=[
+        "Evaluate the response stop_reason field and terminate the loop only when it equals end_turn.",
+        "Inspect the message payload and terminate when the top-level role string transitions to user.",
+        "Check whether tool_use blocks exist in content and break immediately when any text block occurs.",
+        "Count consecutive iterations and terminate unconditionally when the cycle count reaches three."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "In the Messages API and Agent SDK, the model may return explanatory text alongside tool use blocks in the same turn. The loop must inspect response.stop_reason; it must continue executing tools when stop_reason is 'tool_use' and only present final results when stop_reason is 'end_turn'.",
+        "distractors": [
+            "Checking whether role equals user is invalid because the assistant response always has the role 'assistant'.",
+            "Terminating when any text block occurs causes premature termination because Claude frequently emits thinking or commentary text prior to emitting a tool_use block.",
+            "Arbitrary cycle counting is an anti-pattern that truncates valid multi-step workflows before completion."
+        ]
+    },
+    key_insight="Never terminate agentic loops by checking content text blocks or string parsing. Always inspect stop_reason: continue on 'tool_use' and terminate on 'end_turn'."
+))
+
+# Q2 (Target: B = 1)
+questions.append(create_question(
+    qid=2,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Multi-Agent Orchestration",
+    module="Domain 1 (Hub-and-Spoke Orchestration)",
+    scenario="A development team implements a multi-agent research platform using a hub-and-spoke topology with a primary coordinator delegating to web search, document analysis, and synthesis subagents. The team considers allowing subagents to message each other directly to reduce coordinator overhead. Why does the hub-and-spoke architecture strictly prohibit direct peer-to-peer subagent communication?",
+    options=[
+        "Direct peer communication causes HTTP connection pool exhaustion on standard cloud gateways.",
+        "Peer-to-peer communication bypasses coordinator state tracking, creating unmonitored execution loops.",
+        "The Claude Messages API rejects requests containing messages generated by unauthorized child models.",
+        "Direct communication between subagents incurs double token billing across shared network interfaces."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "In hub-and-spoke orchestration, all control flow, data exchange, and state tracking must pass through the coordinator. Peer-to-peer communication bypasses the coordinator, making centralized error handling, task decomposition, budget enforcement, and synthesis verification impossible.",
+        "distractors": [
+            "Connection pool exhaustion is an infrastructure transport detail, not the architectural reason for hub-and-spoke isolation.",
+            "The Messages API is stateless and does not track or reject requests based on which child subagent generated prior content.",
+            "Token billing is determined strictly by input and output tokens processed in each API call, not network interface handoffs."
+        ]
+    },
+    key_insight="In hub-and-spoke architectures, subagents never communicate directly. All control flow, state management, and data aggregation must route through the coordinator."
+))
+
+# Q3 (Target: C = 2)
+questions.append(create_question(
+    qid=3,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Subagent Invocation & Context Passing",
+    module="Domain 1 (The Isolation Principle)",
+    scenario="A lead architect designs a coordinator agent that extracts key user constraints and delegates specialized deep-dive tasks to child subagents. In production, child subagents frequently violate user constraints that were negotiated in earlier turns with the coordinator. What fundamental subagent principle was overlooked?",
+    options=[
+        "Child subagents automatically inherit system prompts but truncate custom tool declarations.",
+        "Subagents share conversation memory across threads but drop ephemeral prompt cache headers.",
+        "Subagents do not inherit coordinator conversation history and require explicit context injection.",
+        "Child subagents require elevated enterprise permissions before accessing shared memory stores."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "The isolation principle states that subagents are instantiated with a clean, empty context window. They inherit neither the coordinator's conversation history nor its loaded Skills. Every constraint, finding, or requirement must be explicitly injected into the subagent prompt.",
+        "distractors": [
+            "Subagents do not automatically inherit system prompts from the coordinator; each subagent definition has its own prompt.",
+            "Subagents do not share conversation memory across threads; each invocation is completely isolated.",
+            "Permission modes govern tool execution boundaries, not conversation context inheritance."
+        ]
+    },
+    key_insight="Subagents start with a clean context window and inherit neither history nor Skills from the coordinator. Pass all required context explicitly in the prompt."
+))
+
+# Q4 (Target: D = 3)
+questions.append(create_question(
+    qid=4,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Workflow Enforcement & Handoff",
+    module="Domain 1 (Programmatic Enforcement)",
+    scenario="A customer support resolution agent handles return requests, order lookups, and credit card refunds. Production telemetry indicates that in 11% of refund cases, the agent issues refunds without verifying customer identity via `get_customer`, despite clear system prompt instructions stating verification is mandatory. What is the most effective architectural solution?",
+    options=[
+        "Add several detailed few-shot examples in the system prompt emphasizing identity verification.",
+        "Deploy a secondary LLM classifier to evaluate user sentiment prior to dispatching refund tools.",
+        "Append urgent cautionary warnings in uppercase text to the system prompt regarding refund risks.",
+        "Implement a programmatic prerequisite gate that physically blocks refund tools until verification."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "When financial, security, or data integrity stakes are high, prompt instructions are probabilistic and retain an inherent failure rate (typically 8-12%). Programmatic enforcement via prerequisite gates or SDK PreToolUse hooks physically prevents tool execution until prerequisites succeed.",
+        "distractors": [
+            "Few-shot examples improve model guidance probabilistically but cannot guarantee 100% deterministic compliance in financial operations.",
+            "Sentiment classification does not address the procedural ordering requirement of verifying customer identity.",
+            "Uppercase prompt warnings remain probabilistic guidance and routinely fail under ambiguous customer input."
+        ]
+    },
+    key_insight="High-stakes actions (financial transactions, data mutation, security checks) demand programmatic enforcement (hooks or gates), never prompt-only guidance."
+))
+
+# Q5 (Target: A = 0)
+questions.append(create_question(
+    qid=5,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Agent SDK Hooks",
+    module="Domain 1 (PreToolUse Lifecycle)",
+    scenario="An organization configures an enterprise refund agent using the Claude Agent SDK. Corporate risk policy mandates that any single refund transaction exceeding $500 must be blocked immediately from autonomous execution and routed to manual review. Where should this policy threshold be enforced within the SDK architecture?",
+    options=[
+        "In a PreToolUse hook that inspects refund arguments and returns a deny permission decision.",
+        "In a PostToolUse hook that intercepts the processed transaction and cancels pending bank payouts.",
+        "Within the coordinator system prompt using explicit conditional rules for refund amount caps.",
+        "Through an external cron schedule that monitors database transaction tables every ten minutes."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "The PreToolUse hook executes before the tool is invoked, allowing inspection of arguments (such as refund amount). If amount > $500, it returns a permissionDecision of 'deny' with a detailed reason, preventing the financial side-effect deterministically.",
+        "distractors": [
+            "PostToolUse runs after the tool has already executed, meaning the unauthorized refund transaction has already occurred.",
+            "Prompt instructions are probabilistic and can be bypassed by prompt injection or conversational edge cases.",
+            "Asynchronous cron schedules operate after transactions are committed, failing to prevent unauthorized financial transfers in real time."
+        ]
+    },
+    key_insight="Use PreToolUse hooks to intercept and block policy violations before tool execution occurs. PostToolUse is strictly for normalizing results after execution."
+))
+
+# Q6 (Target: B = 1)
+questions.append(create_question(
+    qid=6,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Agent SDK Hooks",
+    module="Domain 1 (PostToolUse Lifecycle)",
+    scenario="A multi-agent travel booking system queries heterogeneous third-party airline reservation APIs. One supplier API returns flight departure times as Unix epoch timestamps, while another returns ISO 8601 strings, leading to erratic scheduling errors during agent synthesis. What is the most architecturally proportionate place to resolve this format divergence?",
+    options=[
+        "Instruct the downstream synthesis agent in its system prompt to parse mixed date conventions.",
+        "Normalize all supplier timestamp formats inside a PostToolUse hook before returning to Claude.",
+        "Deploy a dedicated translation subagent whose sole responsibility is converting date formats.",
+        "Enforce strict input schema validation on the user prompt to specify required supplier formats."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "PostToolUse hooks intercept raw tool outputs immediately after execution and before they are appended to conversation history. Normalizing data (such as converting Unix timestamps to ISO 8601) in PostToolUse guarantees consistent format representation across heterogeneous suppliers without consuming model reasoning tokens.",
+        "distractors": [
+            "Relying on system prompts forces the model to perform repetitive arithmetic conversions, increasing latency, token costs, and error rates.",
+            "Creating a separate translation subagent introduces substantial orchestration latency and token overhead for simple deterministic string formatting.",
+            "The user prompt cannot control the internal JSON responses returned by third-party airline supplier APIs."
+        ]
+    },
+    key_insight="Use PostToolUse hooks to normalize heterogeneous external API responses before they enter Claude's context, ensuring clean data without model overhead."
+))
+
+# Q7 (Target: C = 2)
+questions.append(create_question(
+    qid=7,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Task Decomposition Strategies",
+    module="Domain 1 (Root-Cause Tracing)",
+    scenario="A multi-agent market intelligence platform is tasked with producing a comprehensive analysis of renewable energy investments across solar, wind, and geothermal sectors. The final synthesized report completely omits the geothermal sector. Investigation shows the geothermal subagent was never invoked. What is the primary architectural root cause?",
+    options=[
+        "The geothermal subagent exhausted its allotted token window during its initial setup phase.",
+        "The synthesis agent encountered a schema error and silently discarded geothermal findings.",
+        "The coordinator agent's task decomposition failed to partition geothermal as an active subtask.",
+        "The external search tool returned an empty result when queried for geothermal energy data."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "In hub-and-spoke multi-agent systems, downstream subagents only execute the tasks assigned to them by the coordinator. If a subagent was never invoked, the root cause lies in the coordinator's initial task decomposition failing to identify and dispatch that specific research sector.",
+        "distractors": [
+            "The subagent was never spawned, so token exhaustion could not have occurred.",
+            "If the subagent was never invoked, no geothermal findings existed for the synthesis agent to discard.",
+            "The search tool could not have failed for geothermal queries because no geothermal queries were ever initiated."
+        ]
+    },
+    key_insight="When entire topics are missing from multi-agent output, trace to the root cause: the coordinator's task decomposition, not downstream worker agents."
+))
+
+# Q8 (Target: D = 3)
+questions.append(create_question(
+    qid=8,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Subagent Invocation & Context Passing",
+    module="Domain 1 (Background Subagents)",
+    scenario="An automated overnight continuous integration agent orchestrates multiple subagents to run security linters, database migrations, and regression tests. When deployed to a headless Docker runner, the entire CI pipeline hangs indefinitely on the first subagent task. What configuration mistake caused this deadlock?",
+    options=[
+        "The coordinator omitted the required bash execution socket from the container mounts.",
+        "The child subagents exceeded the maximum allowed nested process depth in Linux cgroups.",
+        "The Docker container failed to allocate sufficient virtual memory for node worker threads.",
+        "The subagent definitions omitted permissionMode set to bypassPermissions for unattended runs."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "In the Claude Agent SDK, subagents by default inherit interactive permission modes that request user confirmation before running tools. In unattended or headless environments (such as CI/CD Docker containers), subagents must specify permissionMode='bypassPermissions'; otherwise, they block indefinitely waiting for user confirmation.",
+        "distractors": [
+            "The issue is an SDK permission configuration deadlock, not a Docker socket mounting issue.",
+            "Nested process cgroups would result in an immediate operating system kill signal rather than a permanent silent hang.",
+            "Memory exhaustion triggers an out-of-memory (OOM) killer abort, not an indefinite hanging state."
+        ]
+    },
+    key_insight="Background, headless, and CI/CD subagents must be configured with permissionMode='bypassPermissions' to prevent indefinite hangs waiting for interactive approval."
+))
+
+# Q9 (Target: A = 0)
+questions.append(create_question(
+    qid=9,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Subagent Invocation & Context Passing",
+    module="Domain 1 (Parallel Spawning)",
+    scenario="A research coordinator agent needs to retrieve quarterly balance sheets, press releases, and SEC filings for five different peer companies. Dispatching each retrieval subagent sequentially results in an unacceptable 90-second overall latency. How should the coordinator spawn these subagents to minimize duration?",
+    options=[
+        "Emit multiple Task tool invocation blocks in a single model turn to trigger parallel execution.",
+        "Initialize five concurrent WebSocket streaming sessions from separate browser client windows.",
+        "Configure an asynchronous message broker to buffer coordinator queries across separate days.",
+        "Consolidate all company queries into a single large prompt dispatched to one universal agent."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "When Claude emits multiple tool use blocks in a single turn response (e.g. multiple 'Task' or 'Agent' calls), the Agent SDK harness executes them concurrently in parallel. This drastically reduces end-to-end wall-clock latency compared to sequential round trips.",
+        "distractors": [
+            "Opening client-side WebSockets does not alter backend agent orchestration mechanics.",
+            "Message brokers buffering over days introduces massive latency and violates interactive research goals.",
+            "Consolidating all queries into a single prompt creates attention dilution and context bloat across 15 complex document sets."
+        ]
+    },
+    key_insight="Parallel subagent execution is achieved by having the coordinator emit multiple Task tool calls in a single turn response, minimizing total wall-clock latency."
+))
+
+# Q10 (Target: B = 1)
+questions.append(create_question(
+    qid=10,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Session State & Resumption",
+    module="Domain 1 (Branching with fork_session)",
+    scenario="A code migration assistant analyzes a legacy monolith and identifies two mutually exclusive refactoring approaches: migrating database entities to an ORM versus writing raw optimized SQL repositories. The developer wants Claude to fully prototype and benchmark both approaches without cross-contaminating conversation contexts. Which SDK mechanism is designed for this?",
+    options=[
+        "Execute both prototypes sequentially in the same session while clearing cache headers.",
+        "Use fork_session to branch two independent sessions from the shared baseline analysis point.",
+        "Store intermediate files in temporary scratchpads and toggle environment variable flags.",
+        "Replay the entire prompt transcript from scratch into two separate cloud tenant accounts."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "The fork_session capability in the Claude Agent SDK allows branching from an established baseline session state into multiple independent child sessions. Each branch retains the prior analysis context without polluting the other branch or the parent conversation.",
+        "distractors": [
+            "Executing sequentially in the same session pollutes conversation context, leading to contradictory reasoning between the two opposing patterns.",
+            "Scratchpad files alone do not isolate the conversational context and tool history of the agent.",
+            "Replaying from scratch into separate accounts is needlessly complex and incurs duplicate input token processing costs."
+        ]
+    },
+    key_insight="Use fork_session to explore divergent architectural alternatives from a common baseline without cross-contaminating session state."
+))
+
+# Q11 (Target: C = 2)
+questions.append(create_question(
+    qid=11,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Task Decomposition Strategies",
+    module="Domain 1 (Attention Dilution in Code Review)",
+    scenario="An automated PR review agent is given a pull request modifying 16 interrelated microservice configuration files. In production, the review comments are inconsistent: the first three files receive rigorous scrutiny, while the remaining files receive superficial approvals that miss breaking syntax errors. What architectural pattern resolves this failure?",
+    options=[
+        "Increase the model generation max_tokens allocation to allow longer review commentary.",
+        "Instruct the model to adopt a conservative persona that demands zero defects across files.",
+        "Deploy a multi-pass pipeline: per-file localized review passes followed by an integration pass.",
+        "Switch the model to a faster tier with a lower context budget to accelerate scanning."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "When an agent processes too many files or broad scopes in a single prompt (attention dilution), review depth degrades noticeably toward the middle and end. The established architectural remedy is a multi-pass structure: run independent, focused review passes on each file individually, followed by a final integration pass evaluating cross-file contracts.",
+        "distractors": [
+            "Increasing max_tokens affects output capacity but does not fix cognitive focus or attention distribution over 16 files.",
+            "Prompt persona instructions ('be conservative') fail to overcome the fundamental limits of attention distribution across large multi-file contexts.",
+            "Switching to a lower model tier degrades reasoning capability and exacerbates missed errors."
+        ]
+    },
+    key_insight="Overcome attention dilution across multiple files by implementing a multi-pass pipeline: per-file local analysis passes plus a separate cross-file integration pass."
+))
+
+# Q12 (Multi-select: Target: B = 1 and D = 3)
+questions.append(create_question(
+    qid=12,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Workflow Enforcement & Handoff",
+    module="Domain 1 (Structured Human Handoff)",
+    scenario="A banking customer support agent determines that a complex fraud claim cannot be resolved autonomously and must be escalated to a human specialist. To ensure a seamless handoff that minimizes customer repetition and preserves security, which TWO architectural practices should the system follow? (Select TWO)",
+    options=[
+        "Transmit the entire multi-turn raw conversation transcript directly to the human specialist queue.",
+        "Compile a structured dossier containing customer ID, verified status, root cause, and next actions.",
+        "Prompt the customer to re-enter their sensitive banking password before initiating the transfer.",
+        "Ensure the human specialist receives a self-contained summary without reading raw model history."
+    ],
+    correct_idx=[1, 3],
+    is_multi=True,
+    rationales={
+        "correct": "Options B and D are correct. A structured human handoff must assemble a concise, self-contained dossier (customer ID, verification state, incident summary, amounts, recommended action) so the human representative can act immediately without wading through dozens of raw conversation turns.",
+        "distractors": [
+            "Sending the raw conversation transcript forces human representatives to read verbose model-tool interactions, increasing resolution time and cognitive load.",
+            "Asking customers to re-enter passwords creates severe friction and violates standard security handoff protocols."
+        ]
+    },
+    key_insight="Human handoffs require a concise, structured dossier with key facts and proposed actions, shielding human specialists from raw conversation transcripts."
+))
+
+# Q13 (Target: A = 0)
+questions.append(create_question(
+    qid=13,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Session State & Resumption",
+    module="Domain 1 (Stale Context Problem)",
+    scenario="A software developer uses Claude Code with `--resume <session-id>` to continue an ongoing refactoring session after spending two hours manually editing codebase files in an external IDE. Upon resuming, Claude makes contradictory edits and references outdated method signatures. What is the root cause of this behavior?",
+    options=[
+        "The resumed session relies on cached tool results that no longer match the modified codebase.",
+        "The Claude Agent SDK automatically reverts external file changes upon session reconnection.",
+        "The local session cache expired after sixty minutes of external developer inactivity.",
+        "The model context window was corrupted by external Git working tree modifications."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "When a session is resumed via `--resume`, its context contains prior tool outputs and file reads. If files were modified externally while the session was paused, the agent reasons based on stale cached observations. When substantial manual edits occur, starting a fresh session and injecting a summary is the recommended pattern.",
+        "distractors": [
+            "The Agent SDK never automatically reverts filesystem modifications made by developers.",
+            "Session state does not arbitrarily expire after 60 minutes; local session transcripts remain on disk.",
+            "Git working tree modifications do not corrupt context data structures; the issue is semantic discrepancy between cached tool outputs and current file state."
+        ]
+    },
+    key_insight="Resuming sessions after external manual file edits causes reasoning on stale cached tool outputs. Inform the agent of modified files or restart with an injected summary."
+))
+
+# Q14 (Target: B = 1)
+questions.append(create_question(
+    qid=14,
+    domain_id=1,
+    domain_name="Agentic Architecture & Orchestration",
+    sub_skill="Subagent Invocation & Context Passing",
+    module="Domain 1 (Agent Spawning Prerequisites)",
+    scenario="A software architect configures a coordinator agent using the Claude Agent SDK in Python. The coordinator is assigned subagents via `AgentDefinition`, but whenever it attempts to delegate a subtask, the execution fails with an error indicating subagent dispatch is disallowed. What configuration step was omitted?",
+    options=[
+        "The coordinator script failed to mount an external Redis broker instance for subagent queues.",
+        "The coordinator's allowed_tools list omitted the Task or Agent orchestration tool declaration.",
+        "The developer failed to register a custom HTTP webhook endpoint on the Anthropic dashboard.",
+        "The child subagents were not pre-compiled into standalone native binary executables."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "In the Claude Agent SDK, spawning subagents requires that the coordinator's allowed_tools configuration explicitly include the subagent execution tool ('Task' or 'Agent'). If this tool is not whitelisted, the coordinator cannot invoke child agents.",
+        "distractors": [
+            "The Claude Agent SDK runs subagents within its execution harness; no external Redis message broker is required.",
+            "Subagent dispatch is an SDK runtime capability, not a dashboard webhook configuration.",
+            "Subagents are dynamic agentic loops defined in Python or TypeScript, not pre-compiled native binaries."
+        ]
+    },
+    key_insight="To allow a coordinator to spawn subagents in the Claude Agent SDK, allowed_tools must explicitly include 'Task' or 'Agent'."
+))
+
+# ─── DOMAIN 2: Tool Design & MCP Integration (Q15 - Q24) ──────────────────────
+
+# Q15 (Target: C = 2)
+questions.append(create_question(
+    qid=15,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Tool Interface Design",
+    module="Domain 2 (Tool Descriptions as Selection Surface)",
+    scenario="A customer service agent frequently misroutes queries by invoking `get_customer` when users provide order numbers (e.g., 'where is order 99281?'), instead of invoking `lookup_order`. Both tool schemas currently feature minimal single-sentence descriptions. What is the most effective first architectural step to resolve this misrouting?",
+    options=[
+        "Implement a custom machine learning classifier to pre-route user queries before tool invocation.",
+        "Consolidate both operations into a single generic query_database tool with a complex input schema.",
+        "Expand tool descriptions with explicit parameter constraints, example queries, and negative boundaries.",
+        "Add eight few-shot conversational turns to the system prompt illustrating correct tool selection."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Tool descriptions are the PRIMARY selection surface Claude uses to determine tool invocation. When tools with similar entities are misrouted, the most proportionate and high-leverage first step is expanding tool descriptions to include expected input formats, example queries, edge cases, and explicit negative boundaries (e.g., 'Use for customer profile data. Do NOT use for order tracking').",
+        "distractors": [
+            "Building an external ML classifier is an expensive, over-engineered solution before basic prompt and tool descriptions have been optimized.",
+            "Consolidating distinct functions into a monolithic tool obscures parameter contracts and worsens ambiguity.",
+            "Adding 8 few-shot turns increases input token latency and overhead without fixing the root cause: ambiguous tool descriptions."
+        ]
+    },
+    key_insight="Tool descriptions are the primary selection mechanism for Claude. Improve descriptions with negative boundaries and example queries before considering complex routing classifiers."
+))
+
+# Q16 (Target: D = 3)
+questions.append(create_question(
+    qid=16,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Structured Error Responses",
+    module="Domain 2 (The isError Pattern)",
+    scenario="A developer designs an MCP tool that connects to a backend order fulfillment database. When an order ID does not exist in the database, the tool function throws an unhandled server exception that returns an HTTP 500 error string to Claude. How should the tool communicate this outcome according to MCP best practices?",
+    options=[
+        "Return an empty JSON object with an HTTP 200 status code to simulate successful execution.",
+        "Retry the database query four times automatically before returning a generic timeout string.",
+        "Return a synthetic order object populated with null values across all customer fields.",
+        "Return a structured payload with isError set to true, categorized as a non-retryable validation error."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "Under MCP best practices, tools should return structured error payloads with `isError: true`, categorizing the error (e.g. category='validation', isRetryable=false) and providing an actionable explanation. This allows Claude to understand the failure and inform the customer appropriately rather than crashing or looping.",
+        "distractors": [
+            "Returning an empty JSON object causes silent failure; Claude may assume the tool executed properly and hallucinate order details.",
+            "Retrying an order ID that does not exist in the database wastes compute and increases latency, as non-existent records will never appear upon retry.",
+            "Returning synthetic null fields pollutes model context and risks downstream logic errors."
+        ]
+    },
+    key_insight="Tools must return structured error objects with isError: true, error categories, and retryability flags, rather than throwing raw exceptions or returning empty objects."
+))
+
+# Q17 (Target: A = 0)
+questions.append(create_question(
+    qid=17,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Structured Error Responses",
+    module="Domain 2 (Valid Empty Result vs Access Failure)",
+    scenario="An order investigation tool queries a warehouse logistics database. An agent triggers repeated infinite retry loops whenever a search for an archived order returns zero matching records. What architectural misunderstanding caused this retry loop?",
+    options=[
+        "Confusing a valid empty result with an access failure, causing retries on ground-truth empty data.",
+        "Failing to set the temperature parameter to zero on the underlying Claude Messages API request.",
+        "Configuring the model context window to automatically drop database connection sockets.",
+        "Omitting a secondary fallback database cluster in the local Model Context Protocol server."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "A critical architectural distinction exists between an access failure (e.g., 504 Gateway Timeout, connection reset, where retrying is appropriate) and a valid empty result (database successfully queried and verified zero records exist). When a tool treats zero records as an error, the agent retries indefinitely against an empty record set.",
+        "distractors": [
+            "Temperature zero controls sampling determinism but does not alter whether an empty database result is classified as a retryable error.",
+            "Context windows hold token representations; they do not manage database connection sockets.",
+            "Secondary database clusters address infrastructure availability, not the semantic misclassification of empty query results."
+        ]
+    },
+    key_insight="Distinguish between access failures (transient network issues requiring retry) and valid empty results (query succeeded, zero records found, never retry)."
+))
+
+# Q18 (Target: B = 1)
+questions.append(create_question(
+    qid=18,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Tool Distribution & tool_choice",
+    module="Domain 2 (Tool Overload Problem)",
+    scenario="A lead architect evaluates an agent system where a single universal agent is provided with 18 distinct MCP tools covering accounting, inventory, human resources, and shipping. The agent frequently hallucinates tool parameters and selects inappropriate tools. What is the recommended scoping rule to restore high selection accuracy?",
+    options=[
+        "Prefix all tool names with numerical indexes to dictate the preferred order of tool evaluation.",
+        "Decompose into specialized subagents, scoping each subagent to approximately four to five role-specific tools.",
+        "Increase the top-p sampling parameter to expand the candidate tokens considered during tool selection.",
+        "Consolidate all eighteen tool interfaces into four broad tools that accept untyped key-value dictionaries."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "Providing an agent with more than 4-5 tools degrades tool selection accuracy, increases parameter hallucination, and dilutes model focus. The architectural best practice is decomposing the system into specialized subagents, each equipped strictly with the 4-5 tools needed for its role.",
+        "distractors": [
+            "Numerical prefixes do not prevent semantic confusion between complex overlapping schemas.",
+            "Increasing top-p increases randomness in generation, worsening tool misrouting and parameter hallucinations.",
+            "Consolidating into untyped key-value dictionaries destroys schema validation and forces the model to guess argument structures."
+        ]
+    },
+    key_insight="Limit each agent to 4-5 role-specific tools. Overloading a single agent with dozens of tools degrades selection accuracy and increases hallucinations."
+))
+
+# Q19 (Target: C = 2)
+questions.append(create_question(
+    qid=19,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Tool Distribution & tool_choice",
+    module="Domain 2 (tool_choice Modes)",
+    scenario="A financial document extraction pipeline processes unstructured SEC 10-K filings. The pipeline requires that Claude ALWAYS extract financial data by invoking the `extract_financial_table` tool rather than outputting conversational prose. Which parameter configuration guarantees this behavior?",
+    options=[
+        "Configure system prompt instructions in bold text instructing the model never to reply with prose.",
+        "Set tool_choice to 'auto' while setting temperature to zero to discourage conversational replies.",
+        "Set tool_choice to 'any' or explicitly force {'type': 'tool', 'name': 'extract_financial_table'}.",
+        "Omit the user prompt and supply only the PDF document inside the system prompt block."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Setting tool_choice to 'any' forces the model to call at least one tool, while setting `tool_choice: {'type': 'tool', 'name': 'extract_financial_table'}` forces the model to call that specific tool. In contrast, `tool_choice: 'auto'` allows Claude to freely decide between tool invocation and text generation.",
+        "distractors": [
+            "System prompt instructions remain probabilistic and do not physically prevent conversational prose fallbacks.",
+            "tool_choice: 'auto' leaves tool selection up to model discretion regardless of temperature.",
+            "Omitting the user prompt causes validation errors in the Messages API and does not enforce tool execution."
+        ]
+    },
+    key_insight="Use tool_choice: {'type': 'tool', 'name': '...'} or 'any' to mandate tool execution in extraction pipelines. Never rely on 'auto' for mandatory extraction."
+))
+
+# Q20 (Target: D = 3)
+questions.append(create_question(
+    qid=20,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Tool Distribution & tool_choice",
+    module="Domain 2 (Scoped Cross-Role Tools)",
+    scenario="In a multi-agent research system, a synthesis subagent evaluates draft sections written by deep-dive writers. Every time the synthesis agent encounters a disputed statistic, it must route a message back through the coordinator to query search tools, causing a 40% latency spike. What is the most proportionate architectural fix?",
+    options=[
+        "Grant the synthesis agent unrestricted access to all web scraping and full-text document indexing tools.",
+        "Instruct the synthesis agent to omit disputed statistics from the final published research report.",
+        "Force the coordinator to perform all writing tasks directly without utilizing a synthesis subagent.",
+        "Equip the synthesis subagent with a lightweight, scoped verify_fact tool for localized fact checking."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "When a downstream subagent repeatedly round-trips through the coordinator for trivial lookups, equipping that subagent with a lightweight, scoped helper tool (e.g. `verify_fact`) eliminates coordinator bottleneck latency while maintaining clean separation of concerns.",
+        "distractors": [
+            "Granting unrestricted access to all scrapers and indexers violates tool scoping rules (overloading the agent with too many tools).",
+            "Omitting disputed statistics compromises the factual integrity and completeness of the research report.",
+            "Eliminating the synthesis subagent forces the coordinator to perform heavy generation, destroying modularity and exceeding context budgets."
+        ]
+    },
+    key_insight="Eliminate coordinator round-trip latency by providing worker agents with scoped, lightweight verification tools, without dumping full tool suites on them."
+))
+
+# Q21 (Target: A = 0)
+questions.append(create_question(
+    qid=21,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="MCP Server Integration",
+    module="Domain 2 (MCP Configuration & Secrets)",
+    scenario="A development team configures a shared GitHub MCP server for their repository using `.mcp.json`. To ensure all developers can use the configuration without exposing personal credentials, how should GitHub personal access tokens be managed?",
+    options=[
+        "Reference environment variables using syntax like 'token': '${GITHUB_TOKEN}' in the committed .mcp.json.",
+        "Commit the team lead's personal access token directly into the root .mcp.json file in version control.",
+        "Hardcode personal access tokens inside the global user configuration file located at ~/.claude.json.",
+        "Transmit access tokens in plain text within the system prompt of each individual repository slash command."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "Project-level `.mcp.json` files are committed to version control and shared across the team. MCP configuration supports environment variable expansion (`${GITHUB_TOKEN}`), allowing secure credential management without hardcoding secrets in git.",
+        "distractors": [
+            "Committing real tokens to git is a severe security vulnerability that violates least-privilege credential practices.",
+            "User-level `~/.claude.json` is not committed or shared with the team, requiring manual duplication and secret leakage risks.",
+            "Placing secrets in system prompts exposes tokens to LLM context transcripts, log aggregators, and prompt injection."
+        ]
+    },
+    key_insight="Use environment variable expansion (${TOKEN}) in project-level .mcp.json files to share tool configurations safely without checking in secrets."
+))
+
+# Q22 (Target: B = 1)
+questions.append(create_question(
+    qid=22,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="MCP Server Integration",
+    module="Domain 2 (Build vs Use Strategy)",
+    scenario="An enterprise engineering team needs Claude to interact with PostgreSQL databases, Jira issue trackers, and an internal custom proprietary ERP system. What is the recommended build-versus-use MCP adoption strategy?",
+    options=[
+        "Write custom MCP servers from scratch for all three systems to ensure strict internal code ownership.",
+        "Deploy verified community MCP servers for PostgreSQL and Jira, authoring custom MCP only for the ERP system.",
+        "Avoid MCP entirely and write monolithic shell scripts executed exclusively via the built-in Bash tool.",
+        "Wait for Anthropic to release first-party hosted cloud connectors for all internal enterprise systems."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "The recommended MCP strategy is to leverage mature, verified community or vendor MCP servers for standard off-the-shelf software (Postgres, Jira, GitHub, Slack) and dedicate development effort to authoring custom MCP servers only for proprietary internal APIs.",
+        "distractors": [
+            "Reinventing standard database and issue tracking MCP servers wastes engineering effort and introduces maintenance overhead.",
+            "Replacing structured MCP tool contracts with raw Bash shell scripts degrades safety, type checking, and reliability.",
+            "Waiting for third-party hosting delays business value and cannot support proprietary on-premise ERP platforms."
+        ]
+    },
+    key_insight="Adopt community MCP servers for standard platforms (Postgres, Jira, Slack). Reserve custom MCP server development strictly for internal proprietary APIs."
+))
+
+# Q23 (Target: C = 2)
+questions.append(create_question(
+    qid=23,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Built-in Tools",
+    module="Domain 2 (Grep vs Glob)",
+    scenario="A developer using Claude Code needs to locate all references to an exported TypeScript interface named `UserProfile` across a 400-file repository. Which built-in tool should Claude use to identify the exact lines of code where this interface is referenced?",
+    options=[
+        "Use Glob to pattern match file paths containing the word UserProfile in their names.",
+        "Use Bash to run a custom Python script that imports all files and inspects module globals.",
+        "Use Grep to search file contents across the repository for occurrences of the string UserProfile.",
+        "Use Read to iteratively open and load all 400 project files into the conversation context."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Grep searches file CONTENTS for text or regex patterns (e.g. interface names, variable references, error strings). In contrast, Glob matches file PATHS and names (e.g. `**/*.test.tsx`). Using Grep is the accurate and token-efficient method to locate text occurrences across files.",
+        "distractors": [
+            "Glob matches file names and paths, not the text contents inside files where the interface is imported.",
+            "Writing a custom Python script via Bash introduces unnecessary overhead when the optimized built-in Grep tool exists.",
+            "Loading all 400 files with Read exhausts context limits, wastes tokens, and dilutes model focus."
+        ]
+    },
+    key_insight="Grep searches file CONTENTS for code patterns and strings. Glob matches file PATHS and names. Never swap their roles."
+))
+
+# Q24 (Target: D = 3)
+questions.append(create_question(
+    qid=24,
+    domain_id=2,
+    domain_name="Tool Design & MCP Integration",
+    sub_skill="Built-in Tools",
+    module="Domain 2 (Edit Tool Fallback)",
+    scenario="Claude Code attempts to modify a configuration file using the built-in `Edit` tool. The replacement fails repeatedly with an error indicating the target `old_string` matches multiple identical lines in the file. What is the standard fallback procedure?",
+    options=[
+        "Re-run the Edit tool with the identical arguments until stochastic sampling produces a unique match.",
+        "Instruct the user to manually open their code editor and paste the proposed code modifications.",
+        "Execute a Bash sed command with force flags to overwrite all matching lines across the filesystem.",
+        "Use Read to inspect broader surrounding context, then supply unique anchor lines or use Write."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "The `Edit` tool requires `old_string` to match uniquely within the file. When matching is ambiguous, the correct fallback is using `Read` to observe additional surrounding lines (expanding the anchor text until it is unique) or rewriting the full file using `Write`.",
+        "distractors": [
+            "Re-running Edit with identical arguments will fail identically because string matching is deterministic.",
+            "Asking the user to manually edit code defeats the purpose of autonomous code editing tools.",
+            "Executing destructive sed commands via Bash bypasses safety mechanisms and can corrupt duplicate configurations."
+        ]
+    },
+    key_insight="The Edit tool requires unique string matches. When duplicate lines exist, expand surrounding anchor lines or fall back to Read + Write."
+))
+
+# ─── DOMAIN 3: Claude Code Configuration & Workflows (Q25 - Q35) ─────────────
+
+# Q25 (Target: A = 0)
+questions.append(create_question(
+    qid=25,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="CLAUDE.md Hierarchy",
+    module="Domain 3 (Configuration Scoping)",
+    scenario="A software engineering team establishes coding standards for TypeScript services in `.claude/CLAUDE.md` and commits it to their main git repository. A newly onboarded developer runs Claude Code locally, but Claude ignores all repository guidelines and generates untyped JavaScript. What is the most likely root cause?",
+    options=[
+        "The developer has conflicting personal instructions in their user-level ~/.claude/CLAUDE.md file.",
+        "The project-level .claude/CLAUDE.md file requires a signed digital enterprise certificate to activate.",
+        "Claude Code only loads instructions if the file is placed in the operating system root /etc directory.",
+        "The repository configuration was committed in UTF-8 format instead of legacy ASCII character encoding."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "The CLAUDE.md hierarchy consists of user-level (`~/.claude/CLAUDE.md`), project-level (`.claude/CLAUDE.md`), and directory-level configs. User-level instructions can override or conflict with project-level settings. Furthermore, if a team member authors instructions only in their personal user-level config, other team members will never receive those instructions.",
+        "distractors": [
+            "CLAUDE.md does not require digital certificates or enterprise licensing to function.",
+            "Claude Code never looks for project instructions in system-level `/etc` directories.",
+            "UTF-8 is the standard, expected encoding for all modern markdown configurations."
+        ]
+    },
+    key_insight="Understand the configuration hierarchy: ~/.claude/CLAUDE.md (user, uncommitted) vs .claude/CLAUDE.md (project, team-wide). Project standards must be committed to the repo."
+))
+
+# Q26 (Target: B = 1)
+questions.append(create_question(
+    qid=26,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="Custom Slash Commands & Skills",
+    module="Domain 3 (Team Slash Commands)",
+    scenario="A DevOps lead creates a custom slash command `/deploy-staging` that runs a validated deployment script. The lead wants every engineer who clones the repository to immediately have access to this slash command in Claude Code. Where should the command definition file be placed?",
+    options=[
+        "In the engineer's local home folder at ~/.claude/commands/deploy-staging.md.",
+        "Inside the version-controlled repository at .claude/commands/deploy-staging.md.",
+        "Within an inline markdown block inside the root README.md documentation file.",
+        "In an external cloud object storage bucket referenced by an HTTP header variable."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "Custom slash commands placed in `.claude/commands/<command>.md` within the repository root are version-controlled and automatically shared with all team members who clone the repository. Files placed in `~/.claude/commands/` are personal to the local machine.",
+        "distractors": [
+            "Placing it in `~/.claude/commands/` keeps it local to that specific machine and will not be shared with other team members upon git clone.",
+            "Claude Code does not parse README.md to discover executable slash commands.",
+            "External cloud buckets are not part of Claude Code's native filesystem discovery hierarchy."
+        ]
+    },
+    key_insight="Place project-shared slash commands in .claude/commands/ in the repository root. Commands in ~/.claude/commands/ are strictly personal."
+))
+
+# Q27 (Target: C = 2)
+questions.append(create_question(
+    qid=27,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="Skills Architecture",
+    module="Domain 3 (YAML Frontmatter context: fork)",
+    scenario="A platform engineer authors a database migration skill at `.claude/skills/migrate/SKILL.md`. Running this skill generates hundreds of verbose database schema inspection logs that rapidly clutter the main conversation context. Which YAML frontmatter configuration executes the skill in an isolated subagent session?",
+    options=[
+        "Set 'sandbox: true' in the skill YAML frontmatter to restrict operating system writes.",
+        "Set 'mode: background' in the skill YAML frontmatter to run without streaming stdout.",
+        "Set 'context: fork' in the skill YAML frontmatter to execute in an isolated subagent context.",
+        "Set 'ephemeral: true' in the skill YAML frontmatter to purge the entire conversation upon exit."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Setting `context: fork` in a skill's YAML frontmatter executes the skill in an isolated subagent session. This keeps verbose intermediate outputs, scratchpad tokens, and tool logs out of the main conversation, returning only the final summary to the parent context.",
+        "distractors": [
+            "`sandbox: true` governs filesystem isolation, not context window session branching.",
+            "`mode: background` is not a valid skill frontmatter parameter in Claude Code.",
+            "`ephemeral: true` does not exist in skill frontmatter and purges nothing."
+        ]
+    },
+    key_insight="Use `context: fork` in SKILL.md frontmatter to run verbose skills in an isolated subagent session, keeping the main conversation context clean."
+))
+
+# Q28 (Target: D = 3)
+questions.append(create_question(
+    qid=28,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="Path-Specific Rules",
+    module="Domain 3 (Rules vs Directory CLAUDE.md)",
+    scenario="A repository contains 60 React component folders where test files (`*.test.tsx`) are co-located alongside component files across arbitrary directory depths. The team wants specific mocking conventions to apply whenever Claude interacts with ANY test file, without loading those conventions during normal component edits. What is the best configuration structure?",
+    options=[
+        "Manually copy a separate CLAUDE.md file into all 60 individual component directories.",
+        "Place all testing guidelines inside the root CLAUDE.md file so they load on every single turn.",
+        "Create an environment variable named CLAUDE_TEST_RULES pointing to an external text file.",
+        "Create .claude/rules/testing.md with YAML frontmatter specifying paths: ['**/*.test.tsx']."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "Path-specific rules in `.claude/rules/*.md` allow specifying glob patterns (e.g. `paths: ['**/*.test.tsx']`). Claude Code dynamically loads these rules ONLY when files matching the glob pattern are actively read or edited, optimizing token consumption across arbitrary directory depths without duplicating files.",
+        "distractors": [
+            "Duplicating 60 CLAUDE.md files creates an unmaintainable maintenance burden.",
+            "Putting all testing rules in root CLAUDE.md bloats every prompt turn even when editing unrelated documentation or backend scripts.",
+            "Claude Code does not load path-specific rules via arbitrary environment variables."
+        ]
+    },
+    key_insight="Use .claude/rules/<name>.md with glob paths to apply rules across scattered files dynamically. Rules only load when matching files are accessed."
+))
+
+# Q29 (Target: A = 0)
+questions.append(create_question(
+    qid=29,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="Plan Mode vs Direct Execution",
+    module="Domain 3 (Selecting Plan Mode)",
+    scenario="An engineering team is planning a major architectural refactor: decomposing an existing monolithic authentication service into three microservices, altering 45 files across the repository. Which execution mode and strategy should the architect choose?",
+    options=[
+        "Use Plan Mode to explore dependencies, design the interface contracts, and get approval before edits.",
+        "Use Direct Execution immediately to edit files concurrently and resolve build breaks as they arise.",
+        "Instruct Claude to execute bash scripts that delete existing authentication directories in one step.",
+        "Run the refactor inside a single non-interactive CI/CD runner without generating an architecture plan."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "Plan Mode (`permission_mode='plan'`) restricts tool execution to read-only exploration and forces Claude to develop a comprehensive implementation plan before making modifications. It is specifically designed for complex, multi-file refactoring tasks (45+ files) where exploring architecture first avoids broken intermediate states.",
+        "distractors": [
+            "Direct execution without planning on 45 files leads to chaotic partial edits, broken builds, and high token waste.",
+            "Deleting authentication directories via bash is reckless and risks unrecoverable data loss.",
+            "Running large architectural refactors unattended in CI/CD without developer review is an extreme anti-pattern."
+        ]
+    },
+    key_insight="Use Plan Mode for large, complex refactors (45+ files) or architectural exploration. Reserve Direct Execution for localized, well-understood single-file edits."
+))
+
+# Q30 (Target: B = 1)
+questions.append(create_question(
+    qid=30,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="CI/CD Integration",
+    module="Domain 3 (The -p Non-Interactive Flag)",
+    scenario="A DevOps engineer adds Claude Code to a GitHub Actions workflow to review pull requests: `claude 'Review PR changes and output markdown'`. When triggered, the GitHub Actions job hangs indefinitely until it hits the 6-hour runner timeout. What critical CLI flag was omitted?",
+    options=[
+        "The `--headless` flag required to disable visual display output in cloud virtual machines.",
+        "The `-p` (or `--print`) flag required to execute Claude Code in non-interactive print mode.",
+        "The `--batch` flag required to process git pull requests through the Message Batches API.",
+        "The `--daemon` flag required to fork the agent execution into a background system daemon."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "Claude Code defaults to interactive terminal mode. In automated environments like CI/CD (GitHub Actions, GitLab CI), the `-p` (or `--print`) flag is MANDATORY. Without `-p`, Claude Code hangs indefinitely waiting for interactive user terminal input.",
+        "distractors": [
+            "`--headless` is a flag for headless web browsers; Claude Code uses `-p` / `--print` for non-interactive execution.",
+            "`--batch` is not a valid Claude Code CLI flag for CI/CD runners.",
+            "`--daemon` does not exist in the Claude Code CLI."
+        ]
+    },
+    key_insight="In CI/CD and automated scripts, the `-p` / `--print` flag is mandatory. Without it, Claude Code blocks indefinitely waiting for interactive terminal input."
+))
+
+# Q31 (Target: C = 2)
+questions.append(create_question(
+    qid=31,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="CI/CD Integration",
+    module="Domain 3 (PR Review Context Isolation)",
+    scenario="A team implements an automated pipeline where Claude Code generates a pull request with new feature code, and then immediately runs a code review check on that pull request within the exact same session context. The review consistently reports zero flaws despite blatant edge-case errors. Why does this occur?",
+    options=[
+        "Claude Code automatically disables review linters when running on branch pull requests.",
+        "The model context window was corrupted by git diff formatting during pull request generation.",
+        "Self-review in the same session suffers from confirmation bias, requiring a fresh isolated session.",
+        "Pull request review prompts require enterprise administrative privileges to generate warnings."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "When an agent reviews its own generated code in the same session context, it retains its prior reasoning and assumptions, leading to strong confirmation bias. Independent, rigorous review requires spinning up a completely fresh Claude instance with zero prior session history.",
+        "distractors": [
+            "Claude Code has no feature that disables review tools on PR branches.",
+            "Git diffs do not corrupt model context data structures.",
+            "Review capabilities are standard agent features, not restricted by enterprise admin permissions."
+        ]
+    },
+    key_insight="Never use the session that generated code to review that same code. Run reviews in an independent, fresh session to prevent confirmation bias."
+))
+
+# Q32 (Target: D = 3)
+questions.append(create_question(
+    qid=32,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="SDK setting_sources Parameter",
+    module="Domain 3 (Hermetic Execution Mode)",
+    scenario="A financial services platform runs automated compliance audits using the Claude Agent SDK. Security auditors require that the audit script execute in a strictly hermetic environment, completely ignoring any local `CLAUDE.md`, user settings, or local hooks on the host machine. Which configuration achieves this?",
+    options=[
+        "Set `setting_sources=['user', 'project', 'local']` in the ClaudeAgentOptions configuration.",
+        "Set `setting_sources=['project']` to restrict discovery to the immediate repository root directory.",
+        "Delete all configuration files from the filesystem before running the automated audit script.",
+        "Set `setting_sources=[]` in the ClaudeAgentOptions configuration to enforce hermetic execution."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "In the Claude Agent SDK, setting `setting_sources=[]` (empty list) enables hermetic mode. The SDK will ignore user-level settings, project `CLAUDE.md`, and local hooks, ensuring the agent executes strictly with programmatic parameters passed in code.",
+        "distractors": [
+            "`setting_sources=['user', 'project', 'local']` loads all configurations from all three levels, which is the opposite of hermetic execution.",
+            "`setting_sources=['project']` still loads project-level CLAUDE.md files from disk.",
+            "Deleting files from developer filesystems is destructive and unnecessary when the SDK provides explicit configuration levers."
+        ]
+    },
+    key_insight="Pass `setting_sources=[]` in ClaudeAgentOptions to run in hermetic mode, ignoring all filesystem settings and CLAUDE.md files."
+))
+
+# Q33 (Target: A = 0)
+questions.append(create_question(
+    qid=33,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="Iterative Refinement",
+    module="Domain 3 (Refinement Hierarchy)",
+    scenario="A developer asks Claude Code to refactor an asynchronous data pipeline. Claude's initial draft fails to implement proper backpressure handling. What is the most effective and token-efficient method to steer Claude toward the correct implementation?",
+    options=[
+        "Provide two to three concrete before-and-after code examples illustrating exact backpressure patterns.",
+        "Write three paragraphs of abstract prose explaining theoretical queue flow and buffer saturation.",
+        "Repeatedly tell Claude to 'think harder and implement high-performance production code'.",
+        "Restart the entire operating system session and rerun the original prompt without modifications."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "In prompt craft and iterative refinement, concrete input/output examples (before-and-after transformations) are the single highest-leverage technique for correcting model behavior. They provide unambiguous structural targets that outperform abstract prose instructions.",
+        "distractors": [
+            "Long theoretical prose paragraphs consume tokens and leave room for interpretation.",
+            "Vague emotional exhortations ('think harder', 'do better') provide zero actionable guidance.",
+            "Restarting sessions with the same prompt will reproduce similar failures due to identical instructions."
+        ]
+    },
+    key_insight="Concrete before-and-after code examples are the highest-leverage refinement technique. Show the exact pattern rather than writing paragraphs of theory."
+))
+
+# Q34 (Target: B = 1)
+questions.append(create_question(
+    qid=34,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="CI/CD Integration",
+    module="Domain 3 (Structured Machine-Readable Output)",
+    scenario="A DevOps pipeline runs Claude Code in a pull request review step. The output must be parsed by a downstream GitHub Actions step that posts inline annotations directly onto specific lines of code in the PR diff. Which combination of CLI flags is required?",
+    options=[
+        "Execute Claude Code with `--verbose` and redirect standard output to an unstructured text file.",
+        "Use `--output-format json` combined with `--json-schema` to enforce a typed output schema.",
+        "Use `--markdown-only` and write a regex parser in bash to extract line numbers from prose text.",
+        "Configure `--stream` to broadcast raw token chunks over an internal TCP socket to GitHub."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "To integrate with downstream automated tooling (such as GitHub Actions annotation bots), Claude Code supports `--output-format json` combined with `--json-schema <path>`. This guarantees 100% syntactically valid and schema-conforming JSON output that can be parsed reliably without brittle regex.",
+        "distractors": [
+            "`--verbose` outputs conversational logs and debugging tokens that cannot be ingested cleanly by automated bots.",
+            "Parsing unstructured markdown with regex is notoriously fragile and breaks across formatting changes.",
+            "`--stream` outputs server-sent event token fragments, which are unsuitable for structured batch ingestion."
+        ]
+    },
+    key_insight="Use `--output-format json` and `--json-schema` with Claude Code in CI/CD to generate machine-readable structured results for downstream automation."
+))
+
+# Q35 (Target: C = 2)
+questions.append(create_question(
+    qid=35,
+    domain_id=3,
+    domain_name="Claude Code Configuration & Workflows",
+    sub_skill="CI/CD Integration",
+    module="Domain 3 (Deduplication Across CI Runs)",
+    scenario="In an automated CI review pipeline, developers frequently push incremental commits to open pull requests. If the review agent reviews the entire PR from scratch on every commit, it repeatedly posts duplicate comments for existing issues that were already reviewed. How should the pipeline deduplicate findings?",
+    options=[
+        "Delete all existing review comments on the pull request before running every single commit check.",
+        "Configure git to rebase and squash all developer commits into a single commit before running CI.",
+        "Inject prior review findings into the prompt with instructions to report ONLY new or unresolved issues.",
+        "Restrict CI code reviews strictly to the final merge commit immediately prior to production deploy."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "The established architectural pattern for multi-commit PR reviews is injecting prior review findings into the prompt context and explicitly instructing the model: 'Review the latest commit. Report ONLY new issues or verify fixes for previously flagged issues; do not re-report unaddressed known issues.'",
+        "distractors": [
+            "Deleting existing comments destroys discussion threads, resolution history, and developer notes.",
+            "Squashing commits during active development breaks developer workflows and history.",
+            "Deferring all reviews until immediately prior to deployment prevents catching errors early during development."
+        ]
+    },
+    key_insight="Prevent duplicate review comments in CI by injecting previous review findings and instructing the agent to report only new or newly resolved issues."
+))
+
+# ─── DOMAIN 4: Prompt Engineering & Structured Output (Q36 - Q45) ────────────
+
+# Q36 (Target: D = 3)
+questions.append(create_question(
+    qid=36,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Explicit Criteria",
+    module="Domain 4 (Categorical Rules vs Vague Directives)",
+    scenario="An automated code security scanning prompt instructs Claude: 'Be conservative and report only high-confidence vulnerabilities.' In production, the scanner floods developers with hundreds of false-positive warnings regarding stylistic naming conventions and harmless comments. How should the prompt be refined?",
+    options=[
+        "Add urgent instructions in capital letters stating that false positives will result in penalties.",
+        "Switch the underlying model tier to Claude Haiku to reduce the total number of flagged lines.",
+        "Increase the top-k sampling parameter to restrict generation to the most probable tokens.",
+        "Replace vague guidance with explicit categorical rules defining what constitutes a true vulnerability."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "Vague directives ('be conservative', 'be careful', 'report only high-confidence issues') consistently fail because models have no calibrated definition of those terms. Replacing vague guidance with explicit categorical rules (e.g. 'Flag SQL strings constructed via concatenation; do NOT flag parameterized queries or naming styles') eliminates ambiguity.",
+        "distractors": [
+            "Emotional warnings in capital letters do not define technical boundaries.",
+            "Switching to Haiku reduces reasoning depth without clarifying vulnerability definitions.",
+            "top-k alters sampling token distributions but cannot substitute for clear semantic rules in prompts."
+        ]
+    },
+    key_insight="Replace vague directives like 'be conservative' with explicit categorical rules defining exactly what conditions to flag and what conditions to ignore."
+))
+
+# Q37 (Target: A = 0)
+questions.append(create_question(
+    qid=37,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Structured Output with tool_use",
+    module="Domain 4 (Syntactic vs Semantic Guarantees)",
+    scenario="A lead architect designs an invoice extraction pipeline that parses vendor PDF invoices using Claude's tool_use feature with a validated JSON Schema. The engineering manager assumes that because the schema validates successfully, the extracted data is guaranteed to be factually and arithmetically correct. What is the fundamental flaw in this assumption?",
+    options=[
+        "Tool use guarantees 100% syntactically valid JSON, but does not guarantee arithmetic accuracy.",
+        "JSON Schema enforcement automatically validates that extracted invoice totals match bank ledgers.",
+        "The Messages API verifies mathematical calculations inside tool arguments before returning output.",
+        "Schema validation guarantees that all extracted vendor names exist in corporate databases."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "Enforcing structured output via `tool_use` and JSON Schema guarantees 100% syntactically valid JSON conforming to the declared schema types and fields. However, it provides ZERO guarantees regarding semantic truth, factual accuracy, or internal arithmetic consistency (e.g., line items adding up to stated totals).",
+        "distractors": [
+            "JSON schemas validate data types and structures, not external bank ledger balances.",
+            "The Messages API does not perform mathematical proofs or arithmetic audits on tool input values.",
+            "Schema validation has no connection to external database verification."
+        ]
+    },
+    key_insight="tool_use guarantees 100% valid JSON syntax conforming to schema, but does NOT guarantee factual accuracy or arithmetic correctness. Always validate semantics programmatically."
+))
+
+# Q38 (Target: B = 1)
+questions.append(create_question(
+    qid=38,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Structured Output with tool_use",
+    module="Domain 4 (Fabrication Prevention via Schema Design)",
+    scenario="An insurance claim extraction system uses a JSON schema where the field `police_report_number` is marked as a required string. When processing claims for minor parking lot scratches where no police report was filed, Claude frequently invents plausible-sounding report numbers (e.g., 'PR-98241'). How should the schema be modified to stop this hallucination?",
+    options=[
+        "Add a prompt instruction stating that hallucinating police report numbers is strictly forbidden.",
+        "Make the field nullable using type: ['string', 'null'] or optional, allowing null when absent.",
+        "Remove the police report number field entirely from the extraction schema across all claims.",
+        "Instruct the model to query an external web search tool whenever a report number is omitted."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "When a field is marked as `required` in a JSON schema but the source document lacks that information, the model is trapped between violating the schema and inventing a value. By making the field nullable (`type: ['string', 'null']`) or optional, the model can legitimately return `null` when data is absent, eliminating hallucinations.",
+        "distractors": [
+            "Prompt instructions forbidding hallucinations fail when the schema physically rejects empty values for required fields.",
+            "Deleting the field prevents extracting legitimate police report numbers when they actually exist.",
+            "Querying web search tools cannot uncover private, unfiled police incident reports."
+        ]
+    },
+    key_insight="Prevent field fabrication by making fields nullable (type: ['string', 'null']) in JSON schemas. Required fields without source data force models to hallucinate."
+))
+
+# Q39 (Target: C = 2)
+questions.append(create_question(
+    qid=39,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Validation-Retry Loops",
+    module="Domain 4 (Retry Effectiveness Boundary)",
+    scenario="A data extraction pipeline includes an automated validation loop that catches extraction discrepancies and feeds them back to Claude with an error message. For which of the following discrepancies is a validation-retry loop effective, and for which is it futile?",
+    options=[
+        "Effective when customer SSNs are missing from source; futile for table arithmetic errors.",
+        "Effective for detecting fraudulent documents; futile for converting currencies to USD.",
+        "Effective for arithmetic inconsistencies; futile when the target data is absent from source.",
+        "Effective for decrypting corrupted PDF files; futile for fixing misplaced telephone numbers."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Validation-retry loops are highly effective for correcting arithmetic discrepancies, formatting mismatches, and misplaced fields because the information exists in context and can be recalculated. However, retrying is completely futile when the requested information is genuinely absent from the source document; repeated retries only induce severe hallucinations.",
+        "distractors": [
+            "Missing SSNs cannot be recovered via retries if not in the document, while arithmetic errors are easily fixed by retry.",
+            "Document fraud detection requires external verification; currency conversion is easily computed.",
+            "LLMs cannot decrypt corrupted files, but misplaced telephone numbers can easily be corrected."
+        ]
+    },
+    key_insight="Validation-retry loops work well for arithmetic and formatting discrepancies where source data exists. They are futile when source data is genuinely absent."
+))
+
+# Q40 (Multi-select: Target: A = 0 and C = 2)
+questions.append(create_question(
+    qid=40,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Batch Processing",
+    module="Domain 4 (Message Batches API Constraints)",
+    scenario="An organization plans to process 50,000 legacy PDF contracts through Claude to extract standard legal clauses. The architect evaluates using the Anthropic Message Batches API. Which TWO characteristics accurately describe the operational constraints and benefits of the Message Batches API? (Select TWO)",
+    options=[
+        "It provides a 50% discount on input, output, and prompt cache tokens compared to standard API calls.",
+        "It guarantees sub-second processing latency for high-throughput interactive user chat sessions.",
+        "Batches are processed asynchronously within a 24-hour turnaround window without interactive tool loops.",
+        "Requests within a single batch job can dynamically branch based on the results of prior batch requests."
+    ],
+    correct_idx=[0, 2],
+    is_multi=True,
+    rationales={
+        "correct": "Options A and C are correct. The Message Batches API offers a 50% cost discount across all token types (input, output, caching) and processes asynchronous workloads within a 24-hour SLA. However, it does not support interactive multi-turn loops or sub-second latency.",
+        "distractors": [
+            "The Message Batches API is an asynchronous bulk processing API designed for high latency tolerance, not sub-second interactive chat.",
+            "Requests within a batch job execute independently; batch items cannot dynamically branch on sibling item results."
+        ]
+    },
+    key_insight="The Message Batches API provides a 50% discount and a 24-hour SLA. It is strictly for asynchronous, non-blocking bulk workloads, not interactive tool loops."
+))
+
+# Q41 (Target: B = 1)
+questions.append(create_question(
+    qid=41,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Batch Processing",
+    module="Domain 4 (Sync vs Batch Architectural Routing)",
+    scenario="A fintech startup is designing two features: (1) a real-time pre-merge pull request security scanner that blocks developer code merges, and (2) a weekly audit that scans 20,000 archived cloud configuration files for technical debt. Which API routing decision aligns with architectural requirements?",
+    options=[
+        "Route both features to the Message Batches API to minimize total monthly organization spending.",
+        "Route the PR scanner to the synchronous Messages API and the weekly audit to the Message Batches API.",
+        "Route the PR scanner to the Message Batches API and the weekly audit to streaming WebSockets.",
+        "Route both features to the synchronous Messages API to ensure uniform code delivery mechanisms."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "Blocking workflows with human-in-the-loop expectations (like pre-merge CI checks) demand immediate feedback and must use the synchronous Messages API. High-volume, latency-tolerant background audits (like weekly scans of 20,000 configs) should use the Message Batches API to capture the 50% cost discount.",
+        "distractors": [
+            "Using the Batch API for PR checks would cause developers to wait up to 24 hours for pull request validation, destroying developer productivity.",
+            "The Batch API cannot satisfy interactive PR blocking requirements, and streaming WebSockets are unnecessary for batch audits.",
+            "Using the synchronous API for 20,000 non-urgent weekly files needlessly doubles token expenditure."
+        ]
+    },
+    key_insight="Route latency-sensitive blocking workflows (PR gates, live chat) to the synchronous Messages API. Route high-volume, latency-tolerant workloads to the Batch API."
+))
+
+# Q42 (Target: C = 2)
+questions.append(create_question(
+    qid=42,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Batch Processing",
+    module="Domain 4 (Batch Failure Recovery)",
+    scenario="An overnight batch processing job containing 10,000 document extraction requests completes. Telemetry shows that 9,920 requests succeeded, while 80 requests failed due to transient upstream network timeouts. What is the correct failure recovery procedure?",
+    options=[
+        "Resubmit the entire 10,000-request batch job to guarantee output consistency across documents.",
+        "Discard the 80 failed documents from the archive and mark the overall batch run as fully completed.",
+        "Filter results by custom_id where result.type is errored, and resubmit only those 80 failed requests.",
+        "Switch the entire data extraction pipeline to synchronous streaming API calls on single-thread loops."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Each request in a batch job is tagged with a developer-assigned `custom_id`. When a batch completes with partial failures, the correct recovery procedure is filtering the results for `result.type == 'errored'` and resubmitting ONLY those specific failed `custom_id` items in a new micro-batch.",
+        "distractors": [
+            "Resubmitting all 10,000 requests wastes substantial compute and incurs unnecessary token costs for the 9,920 successful extractions.",
+            "Discarding failed documents causes permanent data loss in enterprise archiving.",
+            "Switching to single-threaded synchronous processing increases latency and fails to take advantage of bulk discounts."
+        ]
+    },
+    key_insight="Never re-run an entire batch when partial failures occur. Correlate by custom_id, filter for errored items, and resubmit only the failed subset."
+))
+
+# Q43 (Target: D = 3)
+questions.append(create_question(
+    qid=43,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Few-Shot Prompting",
+    module="Domain 4 (Few-Shot Reasoning Chains)",
+    scenario="A medical records classification agent struggles to distinguish between 'acute inpatient admission' and 'observational outpatient stay' on complex borderline cases. The prompt engineer decides to add few-shot examples. What structural element should be included in each example to maximize classification accuracy?",
+    options=[
+        "Only the input document and the final classification label, omitting all explanatory text.",
+        "A synthetic confidence score rating between 95% and 100% to reinforce model certainty.",
+        "A negative penalty statement warning the model of regulatory fines for incorrect classifications.",
+        "A step-by-step reasoning chain explaining WHY specific criteria led to the chosen classification."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "Few-shot examples are most effective when they include explicit reasoning chains (chain-of-thought rationale) demonstrating *why* specific boundary criteria led to one category over a plausible alternative. This encourages genuine reasoning rather than superficial keyword matching.",
+        "distractors": [
+            "Input-label pairs without reasoning provide minimal transfer learning on subtle borderline decisions.",
+            "Synthetic confidence scores do not improve model calibration or explain clinical criteria.",
+            "Regulatory threat statements add emotional noise without clarifying diagnostic boundaries."
+        ]
+    },
+    key_insight="Include explicit reasoning chains in few-shot examples. Showing WHY a decision was made teaches the model how to evaluate borderline edge cases."
+))
+
+# Q44 (Target: A = 0)
+questions.append(create_question(
+    qid=44,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Structured Output with tool_use",
+    module="Domain 4 (Self-Auditing Schemas)",
+    scenario="A logistics invoice processing agent extracts billing line items (freight fee, fuel surcharge, customs duty) and a stated invoice total. To detect arithmetic discrepancies automatically before downstream payment execution, how should the extraction JSON schema be constructed?",
+    options=[
+        "Include calculated_total, stated_total, and a boolean discrepancy_detected field in the schema.",
+        "Rely on the client-side JavaScript front end to rewrite the extracted invoice totals automatically.",
+        "Instruct Claude in the system prompt to mentally calculate taxes without outputting numbers.",
+        "Add an external OCR layer that replaces model text output with raw image bitmap coordinates."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "Designing self-auditing schemas—including fields for `calculated_total`, `stated_total`, and `discrepancy_detected: boolean`—forces the model to perform explicit calculation and comparison turns within the structured output, making verification and validation-retry loops straightforward.",
+        "distractors": [
+            "Relying on client-side code to silently rewrite totals hides discrepancies between stated invoices and billed items.",
+            "Telling Claude to 'mentally calculate' provides zero verifiable telemetry or structured data.",
+            "OCR bitmap coordinates do not perform arithmetic validation across financial line items."
+        ]
+    },
+    key_insight="Design self-auditing schemas with separate calculated and stated fields plus conflict flags to expose arithmetic discrepancies immediately."
+))
+
+# Q45 (Target: B = 1)
+questions.append(create_question(
+    qid=45,
+    domain_id=4,
+    domain_name="Prompt Engineering & Structured Output",
+    sub_skill="Multi-Instance Review",
+    module="Domain 4 (Multi-Instance Evaluation)",
+    scenario="An organization generates synthetic patient care plans using Claude 3.7 Sonnet. To validate compliance with clinical standards, the team builds an automated evaluator. Why must the evaluation pass run on an independent, fresh Claude instance rather than continuing the generation conversation?",
+    options=[
+        "Claude API rate limits prevent evaluating more than one document per active API connection key.",
+        "A separate instance eliminates conversational self-confirmation bias and evaluates purely on merits.",
+        "The Claude tokenizer requires clearing context memory before processing clinical terminology.",
+        "Multi-turn conversations automatically downgrade reasoning models to lightweight fallback tiers."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "When an agent evaluates outputs within the same session that generated them, it exhibits strong self-confirmation bias, justifying its prior choices. Evaluating generated artifacts with an independent Claude instance (or different model tier) ensures impartial, objective verification.",
+        "distractors": [
+            "API rate limits govern requests per minute, not the reuse of conversation threads.",
+            "Tokenizers operate statelessly on string chunks; context history does not alter tokenization.",
+            "The API never silently downgrades model tiers during a multi-turn conversation."
+        ]
+    },
+    key_insight="Always use an independent, fresh Claude instance for evaluation and quality review to prevent conversational confirmation bias."
+))
+
+# ─── DOMAIN 5: Context Management & Reliability (Q46 - Q53) ───────────────────
+
+# Q46 (Target: C = 2)
+questions.append(create_question(
+    qid=46,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Context Preservation",
+    module="Domain 5 (The Progressive Summarization Trap)",
+    scenario="A customer support agent handles lengthy multi-turn interactions. To keep the context size manageable, the application progressively summarizes prior conversation turns every three turns. By turn 12, the agent attempts to process a refund using an incorrect amount ($250 instead of $247.83) and refers to the wrong order number. What caused this distortion?",
+    options=[
+        "The model context window suffered an internal cache parity corruption on turn twelve.",
+        "The customer intentionally supplied conflicting transaction figures in intermediate messages.",
+        "Progressive summarization repeatedly compressed and distorted exact transactional figures.",
+        "The Messages API truncated numeric floating-point values during markdown rendering."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Progressive summarization is a dangerous anti-pattern for transactional data. Each successive summarization pass compresses text, inevitably abstracting away exact precision (converting '$247.83 for order #8891' to 'user requested a refund for roughly $250'). The solution is a persistent 'Case Facts' block containing exact verified numbers that is NEVER passed through a summarizer.",
+        "distractors": [
+            "Cache parity corruption does not occur in standard cloud model context caches.",
+            "The distortion occurred due to summarization loss, not customer conflict.",
+            "The Messages API does not truncate floating point digits in output generation."
+        ]
+    },
+    key_insight="Progressive summarization destroys transactional precision. Store verified entities (amounts, order numbers, dates) in a persistent Case Facts block that is never summarized away."
+))
+
+# Q47 (Target: D = 3)
+questions.append(create_question(
+    qid=47,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Context Preservation",
+    module="Domain 5 (Lost in the Middle Effect)",
+    scenario="An architect analyzes an automated document QA agent where users query a 60-page vendor service level agreement. Production evaluation reveals that Claude answers questions accurately when facts appear on pages 1-5 or pages 55-60, but frequently hallucinates answers when facts are located around page 30. What known phenomenon explains this, and how is it mitigated?",
+    options=[
+        "Token decay effect; mitigated by running the query across four separate cloud availability zones.",
+        "Prompt injection vulnerability; mitigated by base64 encoding all intermediate document text.",
+        "Context window leakage; mitigated by clearing the model temperature parameter before queries.",
+        "Lost in the middle effect; mitigated by placing critical query context and instructions at the top."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "The 'lost in the middle' effect is a well-documented phenomenon where language models recall information at the extreme beginning and end of long prompts significantly better than tokens in the middle. Mitigate by placing critical instructions and key facts at the very top, and structuring middle text with clear section headers.",
+        "distractors": [
+            "Availability zones govern physical server hosting, having zero impact on LLM attention mechanisms.",
+            "Base64 encoding actually destroys model attention and makes text illegible to language models.",
+            "Temperature parameter has no relationship to context position retrieval bias."
+        ]
+    },
+    key_insight="The 'lost in the middle' effect causes poor recall for facts located in the middle of long prompts. Place critical instructions and key facts at the very top of context."
+))
+
+# Q48 (Target: A = 0)
+questions.append(create_question(
+    qid=48,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Escalation & Ambiguity Resolution",
+    module="Domain 5 (Valid vs Invalid Escalation Triggers)",
+    scenario="A product manager proposes configuring an automated customer service agent to immediately escalate any conversation to a human representative whenever user sentiment analysis detects frustration or anger. Why should the solutions architect reject sentiment analysis as a primary escalation trigger?",
+    options=[
+        "Negative sentiment does not correlate with issue complexity; simple issues from angry users should be solved.",
+        "Sentiment analysis requires hosting dedicated on-premise GPU clusters that violate enterprise cloud rules.",
+        "The Claude Agent SDK automatically denies tool execution if user input contains negative words.",
+        "Customer service agents are legally prohibited from reviewing tickets that exhibit negative user tone."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "Sentiment analysis is an unreliable escalation trigger because emotional intensity does not correlate with technical complexity. A furious customer may simply need a password reset or order tracking link—which the agent can resolve in seconds. Valid escalation triggers are: explicit customer demand for a human, undocumented policy exceptions, and failure to make progress.",
+        "distractors": [
+            "Sentiment classification can run easily on lightweight APIs without requiring dedicated on-premise GPU clusters.",
+            "The Claude Agent SDK does not block tool execution based on negative emotional keywords.",
+            "Customer service representatives routinely handle frustrated and angry customers as a core job function."
+        ]
+    },
+    key_insight="Do not escalate based on user sentiment or self-reported confidence. Valid escalation triggers are: explicit customer request for a human, policy gaps, and inability to make progress."
+))
+
+# Q49 (Target: B = 1)
+questions.append(create_question(
+    qid=49,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Escalation & Ambiguity Resolution",
+    module="Domain 5 (Disambiguation vs Heuristics)",
+    scenario="A customer types: 'I want to cancel my subscription.' The agent queries the database and discovers the user has two active accounts: a personal tier and an enterprise team tier. How should the agent resolve this ambiguity?",
+    options=[
+        "Apply a heuristic to cancel the enterprise account because it carries higher financial billing weight.",
+        "Ask the customer to clarify which specific account they want to cancel before executing any tool.",
+        "Cancel both active subscriptions simultaneously to guarantee customer intent is fulfilled.",
+        "Select the most recently accessed subscription account using an automated timestamp heuristic."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "When encountering ambiguous entity matches (multiple accounts, duplicate order numbers), the agent must NEVER guess or use heuristics (e.g. most recent, highest value). Doing so causes irreversible errors. The agent must prompt the user to clarify which specific account they wish to modify.",
+        "distractors": [
+            "Heuristics based on account value frequently cancel the wrong service and anger customers.",
+            "Canceling both accounts is destructive, unauthorized, and causes customer churn.",
+            "Timestamp heuristics are arbitrary and risk terminating the user's primary working account."
+        ]
+    },
+    key_insight="Never use heuristics (most recent, highest value) to resolve ambiguous database matches. Always ask the user for clarifying identifiers before executing state changes."
+))
+
+# Q50 (Target: C = 2)
+questions.append(create_question(
+    qid=50,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Error Propagation",
+    module="Domain 5 (Silent Suppression Anti-Pattern)",
+    scenario="In a multi-agent investment research system, an earnings report retrieval subagent fails due to a network timeout. To prevent the entire application from crashing, the subagent catch block returns an empty dictionary `{}` marked as a successful response. What downstream failure does this cause?",
+    options=[
+        "The coordinator terminates immediately with an unhandled Python dictionary parsing exception.",
+        "The system context cache automatically purges all previous company SEC filing transcripts.",
+        "The synthesis agent mistakes the access failure for a valid empty result and reports zero revenue.",
+        "The Messages API raises a schema validation error due to receiving empty dictionary braces."
+    ],
+    correct_idx=2,
+    rationales={
+        "correct": "Silent error suppression (returning an empty object `{}` marked successful on failure) is a severe anti-pattern. Downstream synthesis agents interpret the empty result as ground truth (e.g., concluding the company had no earnings or no revenue), producing false reports. Errors must be propagated explicitly as structured failure objects.",
+        "distractors": [
+            "Returning an empty dictionary does not trigger unhandled parsing crashes if caught.",
+            "Empty dictionaries do not cause cache purges across other filings.",
+            "The Messages API accepts valid JSON dictionaries; the error is semantic misinterpretation by downstream models."
+        ]
+    },
+    key_insight="Never silently suppress errors by returning empty collections marked successful. Downstream agents will mistake access failures for ground-truth empty datasets."
+))
+
+# Q51 (Target: D = 3)
+questions.append(create_question(
+    qid=51,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Context Degradation & Codebase Exploration",
+    module="Domain 5 (Context Degradation in Long Sessions)",
+    scenario="A developer conducts an extended 4-hour interactive session in Claude Code, reading dozens of source files and running multiple terminal tests. Toward the end of the session, Claude's suggestions become generic, and it repeatedly forgets architectural decisions made in the first hour. What is the most effective way to restore performance?",
+    options=[
+        "Increase the system prompt token budget to override historical tool execution outputs.",
+        "Instruct Claude to memorize all prior file contents using explicit natural language instructions.",
+        "Switch the model to a faster tier with a reduced context window to force concise outputs.",
+        "Use /compact to summarize conversational history, or save key findings to an external scratchpad."
+    ],
+    correct_idx=3,
+    rationales={
+        "correct": "Extended interactive sessions accumulate massive context bloat from verbose file reads and tool outputs, causing attention degradation and loss of initial context. The established solutions are using `/compact` to compress conversation history while preserving key takeaways, or offloading persistent notes to external scratchpad files.",
+        "distractors": [
+            "Increasing the system prompt budget increases context saturation without removing verbose intermediate tool clutter.",
+            "Natural language instructions cannot prevent mathematical attention dilution in saturated contexts.",
+            "Switching to a smaller tier with less reasoning capability exacerbates context loss and reduces code quality."
+        ]
+    },
+    key_insight="Mitigate context degradation in long interactive sessions by using /compact to compress history, or offloading critical findings to external scratchpad files."
+))
+
+# Q52 (Target: A = 0)
+questions.append(create_question(
+    qid=52,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Human Review & Confidence Calibration",
+    module="Domain 5 (The Aggregate Metrics Trap)",
+    scenario="An AI architect evaluates an automated invoice extraction system across 10,000 corporate documents. The system achieves an impressive 97.5% aggregate field extraction accuracy across the entire test corpus. Why could deploying this system into production without further segmented analysis be dangerous?",
+    options=[
+        "High aggregate accuracy can mask a disastrous 40% failure rate on specific critical document types.",
+        "Enterprise cloud compliance rules mandate a minimum 99.999% aggregate extraction threshold.",
+        "Aggregate evaluation metrics automatically invalidate prompt cache hit rates on the Messages API.",
+        "Document extraction models require retraining from scratch whenever aggregate accuracy exceeds 95%."
+    ],
+    correct_idx=0,
+    rationales={
+        "correct": "The 'aggregate metrics trap' occurs when overall high accuracy (e.g. 97.5%) masks catastrophic failure rates (e.g. 40-50% error) on specific sub-distributions, such as international invoices, handwritten receipts, or multi-currency tables. Performance must always be stratified across document classes and critical fields before production deployment.",
+        "distractors": [
+            "There is no legal or cloud compliance rule specifying a 99.999% accuracy standard for OCR extraction.",
+            "Aggregate metrics have no impact on prompt cache hit mechanics.",
+            "High evaluation accuracy never requires retraining models from scratch."
+        ]
+    },
+    key_insight="Beware the aggregate metrics trap. A 97% overall accuracy score can conceal catastrophic failure rates on specific document types. Always evaluate stratified metrics."
+))
+
+# Q53 (Target: B = 1)
+questions.append(create_question(
+    qid=53,
+    domain_id=5,
+    domain_name="Context Management & Reliability",
+    sub_skill="Information Provenance",
+    module="Domain 5 (Contradictory Sources & Attribution)",
+    scenario="A multi-agent research system investigates global lithium production reserves. Two highly reputable geological survey sources report contradictory reserve figures: Source A reports 21 million metric tons, while Source B reports 28 million metric tons. How should the synthesis subagent handle this discrepancy?",
+    options=[
+        "Average the two numerical figures together and report 24.5 million metric tons as the consensus.",
+        "Report both competing figures with full attribution, source citations, and publication dates.",
+        "Arbitrarily discard Source B and report only Source A to preserve narrative consistency.",
+        "Halt the entire research orchestration pipeline and throw an unresolvable data conflict exception."
+    ],
+    correct_idx=1,
+    rationales={
+        "correct": "When reputable authoritative sources disagree, an agent must never invent a compromise (e.g. averaging figures) or arbitrarily select one source while suppressing the other. The correct architectural behavior is reporting both competing figures along with full provenance metadata: source name, publication date, and methodology context.",
+        "distractors": [
+            "Averaging figures creates synthetic, unverified data that neither authoritative source actually published.",
+            "Arbitrarily discarding one source conceals genuine industry disagreement and misleads stakeholders.",
+            "Halting the pipeline on conflicting real-world data destroys system availability and utility."
+        ]
+    },
+    key_insight="When authoritative sources disagree, never average figures or pick one arbitrarily. Report both competing figures with full attribution and publication dates."
+))
+
+exam1_data = {
+    "id": 1,
+    "title": "Practice Exam 1: Agentic Loops & Orchestration Patterns",
+    "description": "Agentic loop mechanics, hub-and-spoke orchestration, SDK hooks, and tool design fundamentals.",
+    "questions": questions
+}
+
+output_path = "data/architect/exam1.json"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+with open(output_path, "w", encoding="utf-8") as f:
+    json.dump(exam1_data, f, indent=2)
+
+print(f"Successfully generated {len(questions)} questions in {output_path}!")
